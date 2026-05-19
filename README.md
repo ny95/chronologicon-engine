@@ -11,7 +11,6 @@ Node.js backend project:
 - MySQL + Sequelize
 - BullMQ + Redis worker queue for ingestion jobs
 - Zod request validation
-- Docker + Docker Compose
 
 ## Project Structure
 

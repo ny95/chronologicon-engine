@@ -1,0 +1,48 @@
+{
+  "name": "chronologicon-engine",
+  "version": "1.0.0",
+  "description": "Chronologicon Engine API for ingesting and analyzing historical event timelines.",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "dev:worker": "nodemon src/worker.js",
+    "start": "node src/server.js",
+    "worker": "node src/worker.js",
+    "db:sync": "node src/db/sync.js",
+    "test": "jest --runInBand"
+  },
+  "keywords": [
+    "node",
+    "express",
+    "mysql",
+    "sequelize",
+    "bullmq"
+  ],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bullmq": "^5.76.10",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "http-errors": "^2.0.1",
+    "ioredis": "^5.10.1",
+    "morgan": "^1.10.1",
+    "mysql2": "^3.22.3",
+    "sequelize": "^6.37.8",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "eslint": "^10.4.0",
+    "jest": "^30.4.2",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2",
+    "swagger-autogen": "^2.23.7"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}

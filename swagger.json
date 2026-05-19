@@ -1,0 +1,744 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Chronologicon Engine API",
+    "description": "Node.js backend project: It ingests historical event dump files asynchronously, stores events in MySQL through Sequelize, exposes APIs of timeline/search/insight.",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3000",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "tags": [
+    {
+      "name": "Events",
+      "description": "Event ingestion and search APIs"
+    },
+    {
+      "name": "Timeline",
+      "description": "Nested event timeline APIs"
+    },
+    {
+      "name": "Insights",
+      "description": "Timeline insight and analysis APIs"
+    }
+  ],
+  "paths": {
+    "/api/events/ingest": {
+      "post": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Start event ingestion",
+        "description": "Starts an asynchronous ingestion job from a server-side historical event text file.",
+        "operationId": "ingestEvents",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/IngestEventsRequest"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Ingestion job queued successfully.",
+            "schema": {
+              "$ref": "#/definitions/IngestEventsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation failed or file was not found.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/events/ingestion-status/{jobId}": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Get ingestion status",
+        "description": "Returns the current status and processing counters for an ingestion job.",
+        "operationId": "getIngestionStatus",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "path",
+            "description": "Ingestion job identifier returned by the ingest endpoint.",
+            "required": true,
+            "type": "string",
+            "minLength": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ingestion job status.",
+            "schema": {
+              "$ref": "#/definitions/IngestionStatus"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Ingestion job was not found.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/events/search": {
+      "get": {
+        "tags": [
+          "Events"
+        ],
+        "summary": "Search historical events",
+        "description": "Searches historical events by name and date bounds with sorting and pagination.",
+        "operationId": "searchEvents",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Case-insensitive partial event name filter.",
+            "required": false,
+            "type": "string",
+            "minLength": 1
+          },
+          {
+            "name": "start_date_after",
+            "in": "query",
+            "description": "Only include events that start after this ISO 8601 date-time.",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "end_date_before",
+            "in": "query",
+            "description": "Only include events that end before this ISO 8601 date-time.",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Field used to sort results.",
+            "required": false,
+            "type": "string",
+            "default": "start_date",
+            "enum": [
+              "start_date",
+              "end_date",
+              "event_name",
+              "duration_minutes"
+            ]
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "description": "Sort direction.",
+            "required": false,
+            "type": "string",
+            "default": "asc",
+            "enum": [
+              "asc",
+              "desc"
+            ]
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "One-based page number.",
+            "required": false,
+            "type": "integer",
+            "default": 1,
+            "minimum": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum events returned per page.",
+            "required": false,
+            "type": "integer",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 100
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated event search results.",
+            "schema": {
+              "$ref": "#/definitions/SearchEventsResponse"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/timeline/{rootEventId}": {
+      "get": {
+        "tags": [
+          "Timeline"
+        ],
+        "summary": "Get event timeline tree",
+        "description": "Returns a nested parent-to-child timeline tree starting at the requested root event.",
+        "operationId": "getTimeline",
+        "parameters": [
+          {
+            "name": "rootEventId",
+            "in": "path",
+            "description": "Root event UUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nested event tree.",
+            "schema": {
+              "$ref": "#/definitions/EventTree"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Root event was not found.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/insights/overlapping-events": {
+      "get": {
+        "tags": [
+          "Insights"
+        ],
+        "summary": "Find overlapping events",
+        "description": "Returns distinct event pairs whose time windows overlap within the requested date range.",
+        "operationId": "getOverlappingEvents",
+        "parameters": [
+          {
+            "$ref": "#/parameters/StartDateQuery"
+          },
+          {
+            "$ref": "#/parameters/EndDateQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of overlapping event pairs.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/OverlappingEventPair"
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/insights/temporal-gaps": {
+      "get": {
+        "tags": [
+          "Insights"
+        ],
+        "summary": "Find largest temporal gap",
+        "description": "Finds the largest continuous period with no recorded event coverage in the requested range.",
+        "operationId": "getTemporalGaps",
+        "parameters": [
+          {
+            "$ref": "#/parameters/StartDateQuery"
+          },
+          {
+            "$ref": "#/parameters/EndDateQuery"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Largest temporal gap result.",
+            "schema": {
+              "$ref": "#/definitions/TemporalGapResponse"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "/api/insights/event-influence": {
+      "get": {
+        "tags": [
+          "Insights"
+        ],
+        "summary": "Find event influence path",
+        "description": "Finds the minimum cumulative duration path from a source event to a target event by following parent-to-child links.",
+        "operationId": "getEventInfluence",
+        "parameters": [
+          {
+            "name": "sourceEventId",
+            "in": "query",
+            "description": "Source event UUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          },
+          {
+            "name": "targetEventId",
+            "in": "query",
+            "description": "Target event UUID.",
+            "required": true,
+            "type": "string",
+            "format": "uuid"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shortest temporal influence path.",
+            "schema": {
+              "$ref": "#/definitions/EventInfluenceResponse"
+            }
+          },
+          "400": {
+            "description": "Validation failed.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "404": {
+            "description": "Source or target event was not found.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          },
+          "500": {
+            "description": "Internal server error.",
+            "schema": {
+              "$ref": "#/definitions/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "StartDateQuery": {
+      "name": "startDate",
+      "in": "query",
+      "description": "Inclusive analysis range start as an ISO 8601 date-time.",
+      "required": true,
+      "type": "string",
+      "format": "date-time"
+    },
+    "EndDateQuery": {
+      "name": "endDate",
+      "in": "query",
+      "description": "Exclusive analysis range end as an ISO 8601 date-time. Must be after startDate.",
+      "required": true,
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "definitions": {
+    "IngestEventsRequest": {
+      "type": "object",
+      "required": [
+        "filePath"
+      ],
+      "properties": {
+        "filePath": {
+          "type": "string",
+          "minLength": 1,
+          "example": "/app/data/sample_historical_data.txt"
+        }
+      }
+    },
+    "IngestEventsResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "example": "Ingestion initiated"
+        },
+        "jobId": {
+          "type": "string",
+          "example": "1"
+        },
+        "message": {
+          "type": "string",
+          "example": "Check /api/events/ingestion-status/1 for updates."
+        }
+      }
+    },
+    "IngestionStatus": {
+      "type": "object",
+      "properties": {
+        "jobId": {
+          "type": "string",
+          "example": "1"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "QUEUED",
+            "PROCESSING",
+            "COMPLETED",
+            "FAILED"
+          ]
+        },
+        "processedLines": {
+          "type": "integer",
+          "example": 120
+        },
+        "errorLines": {
+          "type": "integer",
+          "example": 2
+        },
+        "totalLines": {
+          "type": "integer",
+          "example": 122
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "startTime": {
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "endTime": {
+          "type": "string",
+          "format": "date-time",
+          "x-nullable": true
+        },
+        "failureReason": {
+          "type": "string",
+          "x-nullable": true
+        }
+      }
+    },
+    "EventSummary": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string",
+          "x-nullable": true
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "duration_minutes": {
+          "type": "integer"
+        },
+        "parent_event_id": {
+          "type": "string",
+          "format": "uuid",
+          "x-nullable": true
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "EventTree": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/EventSummary"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "children": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/EventTree"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "SearchEventsResponse": {
+      "type": "object",
+      "properties": {
+        "totalEvents": {
+          "type": "integer",
+          "example": 42
+        },
+        "page": {
+          "type": "integer",
+          "example": 1
+        },
+        "limit": {
+          "type": "integer",
+          "example": 10
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EventSummary"
+          }
+        }
+      }
+    },
+    "EventBrief": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "OverlappingEventPair": {
+      "type": "object",
+      "properties": {
+        "overlappingEventPairs": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/definitions/EventBrief"
+          }
+        },
+        "overlap_duration_minutes": {
+          "type": "integer",
+          "example": 90
+        }
+      }
+    },
+    "TemporalGapResponse": {
+      "type": "object",
+      "properties": {
+        "largestGap": {
+          "$ref": "#/definitions/TemporalGap"
+        },
+        "message": {
+          "type": "string",
+          "example": "Largest temporal gap identified."
+        }
+      }
+    },
+    "TemporalGap": {
+      "type": "object",
+      "x-nullable": true,
+      "properties": {
+        "startOfGap": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endOfGap": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "durationMinutes": {
+          "type": "integer"
+        },
+        "precedingEvent": {
+          "$ref": "#/definitions/PrecedingGapEvent"
+        },
+        "succeedingEvent": {
+          "$ref": "#/definitions/SucceedingGapEvent"
+        }
+      }
+    },
+    "PrecedingGapEvent": {
+      "type": "object",
+      "x-nullable": true,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "end_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "SucceedingGapEvent": {
+      "type": "object",
+      "x-nullable": true,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "start_date": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "EventInfluenceResponse": {
+      "type": "object",
+      "properties": {
+        "sourceEventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "targetEventId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "shortestPath": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/InfluencePathEvent"
+          }
+        },
+        "totalDurationMinutes": {
+          "type": "integer",
+          "example": 240
+        },
+        "message": {
+          "type": "string",
+          "example": "Shortest temporal path found from source to target event."
+        }
+      }
+    },
+    "InfluencePathEvent": {
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "event_name": {
+          "type": "string"
+        },
+        "duration_minutes": {
+          "type": "integer"
+        }
+      }
+    },
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "example": "Validation failed"
+            },
+            "details": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

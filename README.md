@@ -31,7 +31,7 @@ data/            sample_historical_data.txt
 
 ```bash
 npm install
-cp sampe.env .env
+cp sample.env .env
 npm run db:sync
 npm run dev
 npm run dev:worker

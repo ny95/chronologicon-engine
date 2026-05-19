@@ -38,8 +38,10 @@ npm run dev
 npm run dev:worker
 ```
 
-The API listens on `http://localhost:3000`.
-The worker runs as a separate service and consumes ingestion jobs from Redis.
+- The API listens on `http://localhost:3000`.
+- The worker runs as a separate service and consumes ingestion jobs from Redis.
+
+- API documentation `http://localhost:3000/docs`.
 
 ## Ingestion Format
 
